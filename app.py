@@ -26,21 +26,45 @@ st.metric("Stocks Scanned", len(symbols))
 
 import yfinance as yf
 def check_trend(df):
-    if df.empty or len(df) < 2:
+    if df.empty or len(df) < 15:
         return "SIDE"
 
     try:
-        h = df["High"].values[-1]
-        hp = df["High"].values[-2]
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.get_level_values(0)
 
-        l = df["Low"].values[-1]
-        lp = df["Low"].values[-2]
+        h = df["High"].iloc[-1]
+        hp = df["High"].iloc[-2]
 
-        c = df["Close"].values[-1]
-        v = df["Volume"].values[-1]
+        l = df["Low"].iloc[-1]
+        lp = df["Low"].iloc[-2]
 
-        is_up = (h > hp) and (l > lp) and (c > hp) and (v > 0)
-        is_down = (h < hp) and (l < lp) and (c < lp) and (v > 0)
+        c = df["Close"].iloc[-1]
+
+        sh = df["High"].tail(15).max()
+        sl = df["Low"].tail(15).min()
+
+        f618 = sh - (sh - sl) * 0.618
+        f50 = sh - (sh - sl) * 0.50
+        f382 = sh - (sh - sl) * 0.382
+
+        is_up = (
+            h > hp and
+            l > lp and
+            c > hp and
+            c > f382 and
+            c > f50 and
+            c > f618
+        )
+
+        is_down = (
+            h < hp and
+            l < lp and
+            c < lp and
+            c < f382 and
+            c < f50 and
+            c < f618
+        )
 
         if is_up:
             return "BUY"
@@ -49,7 +73,7 @@ def check_trend(df):
         else:
             return "SIDE"
 
-    except Exception as e:
+    except:
         return "ERROR"
 
 results = []
@@ -83,6 +107,7 @@ for sym in symbols:
         row[tf] = signal
 
     results.append(row)
+
 df_result = pd.DataFrame(results)
 
 buy_count = (
